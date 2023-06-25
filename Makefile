@@ -1,8 +1,17 @@
 QUERY := "Evaluation of women and peace and security in field-based missions : elections and political transitions : report of the Office of Internal Oversight Services"
-OUTPUT := downloads/output.json
+QUERY_OUTPUT := downloads/output_query.json
 
-test:
+ID := 515307
+ID_OUTPUT := downloads/output_id.json
+
+query:
 	poetry run python main.py 	\
-		${QUERY} 				\
-		-o ${OUTPUT} 			\
+		-q ${QUERY} 				\
+		-o ${QUERY_OUTPUT} 			\
+		-v
+
+id:
+	poetry run python main.py 	\
+		--id ${ID} 				\
+		-o ${ID_OUTPUT} 			\
 		-v
