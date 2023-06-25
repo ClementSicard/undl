@@ -1,5 +1,5 @@
 import os
-from tempfile import NamedTemporaryFile
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pymarc
@@ -200,13 +200,17 @@ class UNDLClient:
 
         response = r.content.decode("utf-8")
 
-        tmpFile = NamedTemporaryFile(mode="w")
-        tmpFile.write(response)
+        path = Path.home() / ".undl"
+        os.makedirs(path, exist_ok=True)
+
+        filePath = path / "tmp.xml"
+        with open(filePath, "w") as f:
+            f.write(response)
 
         match outputFormat:
             case "marcxml":
                 parsedResponse = self.parseMARCXML(
-                    xml=tmpFile.name, outputFile=outputFile
+                    xml=str(filePath), outputFile=outputFile
                 )
             case _:
                 pass
