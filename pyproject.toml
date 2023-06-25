@@ -24,6 +24,13 @@ notebook = "^6.5.4"
 mypy = "^1.4.0"
 interrogate = "^1.5.0"
 
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-module = true
+fail-under = 100
+verbose = 2
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
