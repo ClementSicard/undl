@@ -1,4 +1,7 @@
-BASE_URL = "https://digitallibrary.un.org/search"
+import os
+
+BASE_URL = "https://digitallibrary.un.org/api/v1/search"
+OLD_BASE_URL = "https://digitallibrary.un.org/search"
 
 FORMATS = {
     "bibtex": "btex",
@@ -12,3 +15,5 @@ FORMATS = {
 }
 
 DEFAULT_FORMAT = "marcxml"
+
+API_KEY = os.getenv("UN_API")
