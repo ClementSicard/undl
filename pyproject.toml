@@ -23,6 +23,7 @@ isort = "^5.12.0"
 notebook = "^6.5.4"
 mypy = "^1.4.0"
 interrogate = "^1.5.0"
+pytest = "^7.4.0"
 
 [tool.interrogate]
 ignore-init-method = true
