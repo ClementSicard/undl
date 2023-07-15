@@ -1,4 +1,5 @@
 import os
+import xml.etree.ElementTree as E
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -20,88 +21,102 @@ class UNDLClient:
 
     def query(
         self,
-        query: str,
-        outputFormat: str = consts.DEFAULT_FORMAT,
-        nbResults: int = 50,
-        offset: int = 0,
+        prompt: str,
+        outputFormat: str = consts.DEFAULT_API_FORMAT,
+        lang: str = "en",
         outputFile: Optional[str] = None,
-        oldURL: bool = True,
-        apiKey: Optional[str] = os.getenv("UN_API"),
     ) -> Dict[str, Any] | str | None:
         """
-        Query the UN Digital Library API.
+        Function to query the official UNDL API.
 
         Parameters
         ----------
-        `query` : `str`
-            Query string to search for.
+        `prompt` : `str`
+            The prompt to search for.
         `outputFormat` : `str`, optional
-            Output format _from the API_, by default consts.DEFAULT_FORMAT
-        `nbResults` : `int`, optional
-            Max. number of results, by default 50
-        `offset` : `int`, optional
-            Search offset, by default 0
+            The format of the API call, by default `consts.DEFAULT_API_FORMAT`
+        `lang` : `str`, optional
+            Language, by default `"en"`
         `outputFile` : `Optional[str]`, optional
-            File to which the script will save query results, by default None
-        `oldURL` : `bool`, optional
-            Use old API URL instead of new one, by default True
-        `apiKey` : `Optional[str]`, optional
-            API key to use if the script uses the new URL, by default `os.getenv("UN_API")`
+            Where to store the output file, by default `None`
 
         Returns
         -------
         `Dict[str, Any] | str | None`
-            _description_
+            The query results
         """
-
-        logger.info(f"Querying UNDL API for query string '{query}'")
-
-        if nbResults > 200:
-            logger.warning(
-                "UN Digital Library only returns up to 200 results per query. Setting nbResults to 200."
-            )
-            nbResults = 200
-
-        if outputFormat not in consts.FORMATS:
-            logger.warning(
-                f"Format {outputFormat} not supported. Using {consts.DEFAULT_FORMAT} instead."
-            )
-            outputFormat = consts.DEFAULT_FORMAT
-
-        if not apiKey and not oldURL:
-            logger.error(
-                "No API key found. Please set the UN_API environment variable."
-            )
-            return None
+        logger.success(f"Querying official UNDL API for prompt '{prompt}'")
 
         params = {
-            "p": query,
-            "of": consts.FORMATS[outputFormat],
-            "rg": nbResults,
-            "c": "Resource Type",
+            "p": prompt,
+            "format": outputFormat,
+            "ln": lang,
         }
-
-        if offset != 0:
-            params["jrec"] = offset + 1
 
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
         return self._query(
             params=params,
-            oldURL=oldURL,
-            outputFormat=outputFormat,
+            outputFormat="marcxml",
             outputFile=outputFile,
-            apiKey=apiKey,
+        )
+
+    def getAllRecordIds(
+        self,
+        prompt: str,
+        outputFile: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Returns only the record IDs corresponding to the search results instead of
+        the whole records.
+
+        Result is of the form:
+
+        ```json
+        {
+            "total": 100,
+            "hits": [
+                "123456",
+                "234567",
+                ...
+            ]
+        }
+        ```
+
+        Parameters
+        ----------
+        `prompt` : `str`
+            The prompt to search for.
+        `outputFile` : `Optional[str]`, optional
+            Where to store the results, by default `None`
+
+        Returns
+        -------
+        `Dict[str, Any]`
+            The query results
+        """
+        logger.success(
+            f"Querying official UNDL API for record IDs of prompt '{prompt}'"
+        )
+        params = {
+            "p": prompt,
+            "ln": "en",
+        }
+
+        if self.verbose:
+            logger.info(f"Querying UNDL API with params: {params}")
+
+        return self._query(
+            params=params,
+            outputFormat="json",
+            outputFile=outputFile,
         )
 
     def queryById(
         self,
         recordId: str,
-        outputFormat: str = consts.DEFAULT_FORMAT,
         outputFile: Optional[str] = None,
-        oldURL: bool = True,
-        apiKey: Optional[str] = os.getenv("UN_API"),
     ) -> Dict[str, Any] | str | None:
         """
         Function to query the API for a unique ID.
@@ -127,42 +142,122 @@ class UNDLClient:
 
         logger.info(f"Querying UNDL API for unique ID '{recordId}'")
 
-        if outputFormat not in consts.FORMATS:
-            logger.warning(
-                f"Format {outputFormat} not supported. Using {consts.DEFAULT_FORMAT} instead."
-            )
-            outputFormat = consts.DEFAULT_FORMAT
-
-        if not apiKey and not oldURL:
-            logger.error(
-                "No API key found. Please set the UN_API environment variable."
-            )
-            return None
-
         params = {
             "recid": recordId,
-            "of": consts.FORMATS[outputFormat],
+            "of": "xm",
             "c": "Resource Type",
         }
 
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
-        return self._query(
+        self._queryUnofficial(
             params=params,
-            oldURL=oldURL,
-            outputFormat=outputFormat,
+            outputFormat="marcxml",
             outputFile=outputFile,
-            apiKey=apiKey,
         )
+
+    """
+    Helper functions
+    """
 
     def _query(
         self,
         params: Dict[str, Any],
-        oldURL: bool = True,
+        outputFormat: str = consts.DEFAULT_API_FORMAT,
+        outputFile: Optional[str] = None,
+        apiKey: Optional[str] = os.getenv("UN_API"),
+        searchId: Optional[str] = None,
+    ) -> List[Dict[str, Any]] | str | None:
+        """
+        General query function.
+
+        Parameters
+        ----------
+        `params` : `Dict[str, Any]`
+            Query parameters.
+        `outputFormat` : `Optional[str]`, optional
+            Output format – by default MARCXML, by default consts.DEFAULT_FORMAT
+        `outputFile` : `Optional[str]`, optional
+            File to which the output will be saved, by default None
+        `apiKey` : `Optional[str]`, optional
+            The API key to use in the case of the new URL, by default None
+
+        Returns
+        -------
+        `List[Dict[str, Any]] | str | None`
+            The query results
+        """
+
+        if searchId:
+            params["search_id"] = searchId
+
+        r = requests.get(
+            consts.API_BASE_URL,
+            params=params,
+            headers={
+                "content-type": "application/xml",
+                "Authorization": f"Token {apiKey}",
+            },
+        )
+
+        logger.debug(f"URL: {r.url}")
+        logger.debug(f"Params: {params}")
+
+        match outputFormat:
+            case "marcxml":
+                # Skip the namespace
+                responseXML = E.fromstring(
+                    r.text.replace('xmlns="http://www.loc.gov/MARC21/slim"', "")
+                )
+
+                total = int(responseXML.find("total").text)
+                searchId = responseXML.find("search_id").text
+
+                logger.info(f"Found {total} results.")
+                logger.debug(f"Search ID: {searchId}")
+                logger.debug(f"URL: {r.url}")
+
+                path = Path.home() / ".undl"
+                os.makedirs(path, exist_ok=True)
+
+                filePath = path / "tmp.xml"
+                with open(filePath, "w") as f:
+                    f.write(
+                        E.tostring(responseXML.find("collection"), encoding="unicode")
+                    )
+
+                parsedResponse = self.parseMARCXML(
+                    xml=str(filePath),
+                    outputFile=outputFile,
+                    total=total,
+                    searchId=searchId,
+                )
+                logger.success(
+                    f"Query successful. Saved {len(parsedResponse['records'])} result(s) to {outputFile}."
+                )
+            case "json":
+                parsedResponse = r.json()
+
+                if outputFile:
+                    import json
+
+                    with open(outputFile, "w") as f:
+                        json.dump(parsedResponse, f, indent=4, ensure_ascii=False)
+
+                logger.success(
+                    f"Query successful. Saved {len(parsedResponse['hits'])} result(s) to {outputFile}."
+                )
+            case _:
+                raise NotImplementedError("Only MARCXML is supported for now.")
+
+        return parsedResponse
+
+    def _queryUnofficial(
+        self,
+        params: Dict[str, Any],
         outputFormat: str = consts.DEFAULT_FORMAT,
         outputFile: Optional[str] = None,
-        apiKey: Optional[str] = None,
     ) -> List[Dict[str, Any]] | str | None:
         """
         General query function.
@@ -177,8 +272,6 @@ class UNDLClient:
             Output format – by default MARCXML, by default consts.DEFAULT_FORMAT
         `outputFile` : `Optional[str]`, optional
             File to which the output will be saved, by default None
-        `apiKey` : `Optional[str]`, optional
-            The API key to use in the case of the new URL, by default None
 
         Returns
         -------
@@ -186,13 +279,8 @@ class UNDLClient:
             The query results
         """
         r = requests.get(
-            consts.BASE_URL if not oldURL else consts.OLD_BASE_URL,
+            consts.BASE_URL,
             params=params,
-            headers={
-                "Authorization": f"Token {apiKey}",
-            }
-            if not oldURL
-            else None,
         )
 
         if self.verbose:
@@ -210,12 +298,15 @@ class UNDLClient:
         match outputFormat:
             case "marcxml":
                 parsedResponse = self.parseMARCXML(
-                    xml=str(filePath), outputFile=outputFile
+                    xml=str(filePath),
+                    outputFile=outputFile,
                 )
             case _:
-                pass
+                raise NotImplementedError("Only MARCXML is supported for now.")
 
-        logger.success(f"Query successful. Results saved to {outputFile}.")
+        logger.success(
+            f"Query successful. Saved {len(parsedResponse)} results to {outputFile}."
+        )
 
         return parsedResponse
 
@@ -223,6 +314,8 @@ class UNDLClient:
         self,
         xml: str,
         outputFile: Optional[str] = None,
+        total: Optional[int] = None,
+        searchId: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Parse MARCXML to JSON.
@@ -234,13 +327,21 @@ class UNDLClient:
         `outputFile` : `Optional[str]`, optional
             File to which the output will be saved, by default `None`.
             In the `None` case, the output will be returned.
+        `total` : `Optional[int]`, optional
+            Total number of results, by default `None`.
+        `searchId` : `Optional[str]`, optional
+            Search ID, by default `None`.
 
         Returns
         -------
         `List[Dict[str, Any]]`
             The parsed MARCXML in a JSON-like format.
         """
-        output = []
+        output = {
+            "total": total,
+            "search_id": searchId,
+            "records": [],
+        }
         records: List[Record] = pymarc.parse_xml_to_array(xml)
 
         for record in records:
@@ -273,7 +374,7 @@ class UNDLClient:
             # Remove empty fields
             record = {k: v for k, v in record.items() if v}
 
-            output.append(record)
+            output["records"].append(record)
 
         if outputFile:
             import json
@@ -346,7 +447,7 @@ class UNDLClient:
 
         return {lang: link for lang, link in zip(langs, links)}
 
-    def _getCollections(self, record: Record) -> List[str]:
+    def _getCollections(self, record: Record) -> Dict[str, Any]:
         """
         Get collections from the MARCXML record.
         See https://research.un.org/en/digitallibrary/export
@@ -358,7 +459,7 @@ class UNDLClient:
 
         Returns
         -------
-        `List[str]`
+        `Dict[str, Any]`
             The collections
         """
 
@@ -372,7 +473,7 @@ class UNDLClient:
 
         return collections
 
-    def _getSymbol(self, record: Record) -> str | None:
+    def _getSymbol(self, record: Record) -> Optional[str | Dict[str, Any]]:
         """
         Get document symbol from the MARCXML record.
         See https://research.un.org/en/digitallibrary/export
