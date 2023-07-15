@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "undl"
-version = "1.0.0c"
+version = "1.0.1"
 description = "API to interact with UN Digital Library and format output in a more convenient way"
 authors = ["Clément Sicard <clement@sicard.ch>"]
 maintainers = ["Clément Sicard <clement@sicard.ch>"]
