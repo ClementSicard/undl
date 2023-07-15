@@ -151,7 +151,7 @@ class UNDLClient:
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
-        self._queryUnofficial(
+        return self._queryUnofficial(
             params=params,
             outputFormat="marcxml",
             outputFile=outputFile,

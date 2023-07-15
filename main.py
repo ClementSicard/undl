@@ -7,7 +7,7 @@ from loguru import logger
 from undl.client import UNDLClient
 
 
-def main(args: Dict[str, Any]):
+def main(args: Dict[str, Any]) -> None:
     """
     Runs a query against the UN Digital Library API.
 
@@ -26,9 +26,7 @@ def main(args: Dict[str, Any]):
         )
     else:
         client.query(
-            query=args["query"],
-            outputFormat=args["format"],
-            nbResults=args["n_results"],
+            prompt=args["query"],
             outputFile=args["output"],
         )
 
@@ -73,13 +71,7 @@ def parse_args() -> Dict[str, Any]:
         help="Output file name.",
         default="./downloads/output.json",
     )
-    parser.add_argument(
-        "-n",
-        "--n_results",
-        type=int,
-        help="Number of results",
-        default=50,
-    )
+
     parser.add_argument(
         "-f",
         "--format",
