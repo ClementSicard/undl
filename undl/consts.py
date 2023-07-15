@@ -1,7 +1,9 @@
 import os
 
-BASE_URL = "https://digitallibrary.un.org/api/v1/search"
-OLD_BASE_URL = "https://digitallibrary.un.org/search"
+API_BASE_URL = "https://digitallibrary.un.org/api/v1/search"
+BASE_URL = "https://digitallibrary.un.org/search"
+
+MAX_NB_RESULTS = 200
 
 FORMATS = {
     "bibtex": "btex",
@@ -14,6 +16,7 @@ FORMATS = {
     "ris": "ris",
 }
 
+DEFAULT_API_FORMAT = "xml"
 DEFAULT_FORMAT = "marcxml"
 
 API_KEY = os.getenv("UN_API")
