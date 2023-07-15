@@ -37,4 +37,4 @@ test-long:
 	poetry run python undl/test.py -p $(LONG_QUERY)
 
 test:
-	poetry run python undl/test.py -p $(QUERY)
+	poetry run pytest -v
