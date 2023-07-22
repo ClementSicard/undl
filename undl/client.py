@@ -25,6 +25,8 @@ class UNDLClient:
         outputFormat: str = consts.DEFAULT_API_FORMAT,
         lang: str = "en",
         outputFile: Optional[str] = None,
+        searchId: Optional[str] = None,
+        apiKey: Optional[str] = os.getenv("UN_API"),
     ) -> Dict[str, Any] | str | None:
         """
         Function to query the official UNDL API.
@@ -39,6 +41,11 @@ class UNDLClient:
             Language, by default `"en"`
         `outputFile` : `Optional[str]`, optional
             Where to store the output file, by default `None`
+        `searchId` : `Optional[str]`, optional
+            Search ID, by default `None`
+        `apiKey` : `Optional[str]`, optional
+            API key in the case we use the new URL, by default
+            `os.getenv("UN_API")`
 
         Returns
         -------
@@ -60,6 +67,8 @@ class UNDLClient:
             params=params,
             outputFormat="marcxml",
             outputFile=outputFile,
+            searchId=searchId,
+            apiKey=apiKey,
         )
 
     def getAllRecordIds(
