@@ -16,8 +16,16 @@ class UNDLClient:
     Client class for the United Nations Digital Library API.
     """
 
+    verbose: bool
+    query_cache: Dict[str, Any]
+    id_cache: Dict[str, Any]
+    record_cache: Dict[str, Any]
+
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
+        self.query_cache = {}
+        self.id_cache = {}
+        self.record_cache = {}
 
     def query(
         self,
@@ -52,6 +60,10 @@ class UNDLClient:
         `Dict[str, Any] | str | None`
             The query results
         """
+        if prompt in self.query_cache:
+            logger.success(f"Found prompt '{prompt}' in cache.")
+            return self.query_cache[prompt]
+
         logger.success(f"Querying official UNDL API for prompt '{prompt}'")
 
         params = {
@@ -63,13 +75,17 @@ class UNDLClient:
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
-        return self._query(
+        result = self._query(
             params=params,
             outputFormat="marcxml",
             outputFile=outputFile,
             searchId=searchId,
             apiKey=apiKey,
         )
+
+        self.query_cache[prompt] = result
+
+        return result
 
     def getAllRecordIds(
         self,
@@ -105,6 +121,11 @@ class UNDLClient:
         `Dict[str, Any]`
             The query results
         """
+
+        if prompt in self.id_cache:
+            logger.success(f"Found prompt '{prompt}' in cache.")
+            return self.id_cache[prompt]
+
         logger.success(
             f"Querying official UNDL API for record IDs of prompt '{prompt}'"
         )
@@ -116,11 +137,15 @@ class UNDLClient:
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
-        return self._query(
+        result = self._query(
             params=params,
             outputFormat="json",
             outputFile=outputFile,
         )
+
+        self.id_cache[prompt] = result
+
+        return result
 
     def queryById(
         self,
@@ -149,6 +174,10 @@ class UNDLClient:
             The query results
         """
 
+        if recordId in self.record_cache:
+            logger.success(f"Found record ID '{recordId}' in cache.")
+            return self.record_cache[recordId]
+
         logger.info(f"Querying UNDL API for unique ID '{recordId}'")
 
         params = {
@@ -160,11 +189,15 @@ class UNDLClient:
         if self.verbose:
             logger.info(f"Querying UNDL API with params: {params}")
 
-        return self._queryUnofficial(
+        result = self._queryUnofficial(
             params=params,
             outputFormat="marcxml",
             outputFile=outputFile,
         )
+
+        self.record_cache[recordId] = result
+
+        return result
 
     """
     Helper functions
